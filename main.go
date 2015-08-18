@@ -3,8 +3,47 @@ package main
 import (
   "os"
 //  "fmt"
+  "path"
+  "text/template"
   "github.com/codegangsta/cli"
 )
+
+type ospfconfig struct {
+  Password string
+  Interface string
+  RouterId string
+  PortalNet string
+  ContainerNet string
+}
+
+type zebraconfig struct {
+  Password string
+}
+
+const zebraTemplate = `password {{.Password}}
+log stdout
+`
+
+const ospfdTemplate = `
+password {{.Password}}
+enable password {{.Password}}
+log stdout
+interface {{.Interface}}
+  ip ospf authentication-key {{.Password}}
+
+router ospf
+  ospf router-id {{.RouterId}}
+  log-adjacency-changes detail
+  default-information originate
+  network {{.PortalNet}} area 0.0.0.0
+  network {{.ContainerNet}} area 0.0.0.0
+`
+
+func check(e error) {
+  if e != nil {
+    panic(e)
+  }
+}
 
 func main() {
   app := cli.NewApp()
@@ -15,20 +54,68 @@ func main() {
       Usage: "Directory to output config to",
       EnvVar: "K8S_QUAGGA_OUTPUT",
     },
+    cli.StringFlag{
+      Name: "password",
+      Value: "changeme",
+      Usage: "Password for authorization",
+      EnvVar: "K8S_QUAGGA_PASSWORD",
+    },
   }
   app.Commands = []cli.Command{
     {
       Name: "ospfd",
       Usage: "output ospfd config",
+      Flags: []cli.Flag {
+        cli.StringFlag{
+          Name: "Interface",
+          Value: "eth0",
+          Usage: "The interface to announce on",
+        },
+        cli.StringFlag{
+          Name: "RouterId",
+          Value: "10.0.0.1",
+          Usage: "Router ID to announce",
+        },
+        cli.StringFlag{
+          Name: "PortalNet",
+          Value: "10.2.1.0/24",
+          Usage: "Portal Network CIDR",
+        },
+        cli.StringFlag{
+          Name: "ContainerNet",
+          Value: "10.2.0.0/24",
+          Usage: "Container Network CIDR",
+        },
+      },
       Action: func(c *cli.Context) {
-        println("Printing ospfd config to ", c.GlobalString("output") )
+        config := ospfconfig{
+          Password: c.GlobalString("password"),
+          Interface: c.String("Interface"),
+          RouterId: c.String("RouterId"),
+          PortalNet: c.String("PortalNet"),
+          ContainerNet: c.String("ContainerNet"),
+        }
+        f, err := os.Create(path.Join(c.GlobalString("output"), "ospfd.conf"))
+        check(err)
+        defer f.Close()
+        t, err := template.New("config").Parse(ospfdTemplate)
+        check(err)
+        err = t.Execute(f, config)
+        check(err)
       },
     },
     {
       Name: "zebra",
       Usage: "output zebra config",
       Action: func(c *cli.Context) {
-        println("Printing zebra config to ", c.GlobalString("output") )
+        config := zebraconfig{Password: c.GlobalString("password")}
+        f, err := os.Create(path.Join(c.GlobalString("output"), "zebra.conf"))
+        check(err)
+        defer f.Close()
+        t, err := template.New("config").Parse(zebraTemplate)
+        check(err)
+        err = t.Execute(f, config)
+        check(err)
       },
     },
   }
