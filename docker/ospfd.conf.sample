@@ -1,0 +1,4 @@
+hostname Router
+password zebra
+
+log stdout

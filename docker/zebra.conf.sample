@@ -1,0 +1,4 @@
+hostname Router
+password zebra
+enable password zebra
+
