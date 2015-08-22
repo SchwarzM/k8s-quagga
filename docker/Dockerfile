@@ -7,9 +7,10 @@ RUN apk-install quagga \
                 supervisor
 
 ADD supervisord.conf /etc/supervisord.conf
-ADD zebra.conf.sample /etc/quagga/zebra.conf
-ADD ospfd.conf.sample /etc/quagga/ospfd.conf
+ADD k8s-quagga /k8s-quagga
+ADD run.sh /run.sh
+RUN chmod +x /run.sh
 
 EXPOSE 179 2601 2604
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+CMD ["/run.sh"]
