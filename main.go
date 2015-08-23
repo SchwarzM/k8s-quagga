@@ -12,6 +12,7 @@ type ospfconfig struct {
   Password string
   Interface string
   RouterId string
+  HomeNet string
   PortalNet string
   ContainerNet string
 }
@@ -35,6 +36,7 @@ router ospf
   ospf router-id {{.RouterId}}
   log-adjacency-changes detail
   default-information originate
+  network {{.HomeNet}} area 0.0.0.0
   network {{.PortalNet}} area 0.0.0.0
   network {{.ContainerNet}} area 0.0.0.0
 `
@@ -47,6 +49,7 @@ func check(e error) {
 
 func main() {
   app := cli.NewApp()
+  app.Version = "0.0.1"
   app.Flags = []cli.Flag {
     cli.StringFlag{
       Name: "output",
@@ -86,12 +89,18 @@ func main() {
           Value: "10.2.0.0/24",
           Usage: "Container Network CIDR",
         },
+        cli.StringFlag{
+          Name: "HomeNet",
+          Value: "10.0.1.0/24",
+          Usage: "Home Network CIDR",
+        },
       },
       Action: func(c *cli.Context) {
         config := ospfconfig{
           Password: c.GlobalString("password"),
           Interface: c.String("Interface"),
           RouterId: c.String("RouterId"),
+          HomeNet: c.String("HomeNet"),
           PortalNet: c.String("PortalNet"),
           ContainerNet: c.String("ContainerNet"),
         }
