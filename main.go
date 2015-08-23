@@ -13,16 +13,20 @@ type ospfconfig struct {
   Interface string
   RouterId string
   HomeNet string
-  PortalNet string
   ContainerNet string
 }
 
 type zebraconfig struct {
   Password string
+  PortalNet string
+  PortalGw string
 }
 
 const zebraTemplate = `password {{.Password}}
 log stdout
+
+ip route {{.PortalNet}} {{.PortalGw}}
+
 `
 
 const ospfdTemplate = `
@@ -37,7 +41,6 @@ router ospf
   log-adjacency-changes detail
   default-information originate
   network {{.HomeNet}} area 0.0.0.0
-  network {{.PortalNet}} area 0.0.0.0
   network {{.ContainerNet}} area 0.0.0.0
 `
 
@@ -80,11 +83,6 @@ func main() {
           Usage: "Router ID to announce",
         },
         cli.StringFlag{
-          Name: "PortalNet",
-          Value: "10.2.1.0/24",
-          Usage: "Portal Network CIDR",
-        },
-        cli.StringFlag{
           Name: "ContainerNet",
           Value: "10.2.0.0/24",
           Usage: "Container Network CIDR",
@@ -101,7 +99,6 @@ func main() {
           Interface: c.String("Interface"),
           RouterId: c.String("RouterId"),
           HomeNet: c.String("HomeNet"),
-          PortalNet: c.String("PortalNet"),
           ContainerNet: c.String("ContainerNet"),
         }
         f, err := os.Create(path.Join(c.GlobalString("output"), "ospfd.conf"))
@@ -116,8 +113,24 @@ func main() {
     {
       Name: "zebra",
       Usage: "output zebra config",
+      Flags: []cli.Flag {
+        cli.StringFlag{
+          Name: "PortalNet",
+          Value: "10.2.0.0/24",
+          Usage: "Portal Network CIDR",
+        },
+        cli.StringFlag{
+          Name: "PortalGw",
+          Value: "10.0.1.4",
+          Usage: "Portal Network Gateway",
+        },
+      },
       Action: func(c *cli.Context) {
-        config := zebraconfig{Password: c.GlobalString("password")}
+        config := zebraconfig{
+          Password: c.GlobalString("password"),
+          PortalNet: c.String("PortalNet"),
+          PortalGw: c.String("PortalGw"),
+        }
         f, err := os.Create(path.Join(c.GlobalString("output"), "zebra.conf"))
         check(err)
         defer f.Close()
